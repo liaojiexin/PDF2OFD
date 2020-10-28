@@ -31,13 +31,12 @@ public class OFDRender {
         CT_DocInfo docInfo = new CT_DocInfo();
         docInfo.setDocID(UUID.randomUUID());
         docInfo.setCreatorVersion("1.0");
-        docInfo.setAuthor("DlTech21");
+        docInfo.setAuthor("OFD");
         docInfo.setCreationDate(LocalDate.now());
-        docInfo.setCreator("ofd.js");
+        docInfo.setCreator("OFD");
         docBody.setDocInfo(docInfo);
 
         ofd.addDocBody(docBody);
-        ofd.setAttributeValue("Version", "1.1");
         ofdDir.setOfd(ofd);
     }
 
