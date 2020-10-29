@@ -1,44 +1,49 @@
 package org.ofd.render;
 
+import org.apache.commons.io.FileUtils;
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.pdmodel.common.PDRectangle;
+import org.apache.pdfbox.pdmodel.font.PDFont;
 
-import org.ofd.render.dir.OFDDir;
-import org.ofdrw.core.basicStructure.ofd.DocBody;
-import org.ofdrw.core.basicStructure.ofd.OFD;
-import org.ofdrw.core.basicStructure.ofd.docInfo.CT_DocInfo;
-import org.ofdrw.core.basicType.ST_Loc;
-
+import java.io.File;
 import java.io.IOException;
-import java.net.URISyntaxException;
-import java.text.SimpleDateFormat;
-import java.time.LocalDate;
-import java.util.Map;
-import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.*;
 
 public class OFDRender {
-    private OFDDir ofdDir;
 
-    public OFDRender() {
-        ofdDir = new OFDDir();
+    public static byte[] convertPdfToOfd(byte[] pdfBytes) {
+        long start;
+        long end;
 
-        //生成ofd.xml文件
-        OFD ofd = new OFD();
-        ofd.attribute("Version").setValue("1.1");
-
-        DocBody docBody = new DocBody();
-        docBody.setDocRoot(new ST_Loc("Doc_0/Document.xml"));
-
-        CT_DocInfo docInfo = new CT_DocInfo();
-        docInfo.setDocID(UUID.randomUUID());
-        docInfo.setCreatorVersion("1.0");
-        docInfo.setAuthor("OFD");
-        docInfo.setCreationDate(LocalDate.now());
-        docInfo.setCreator("OFD");
-        docBody.setDocInfo(docInfo);
-
-        ofd.addDocBody(docBody);
-        ofdDir.setOfd(ofd);
+        String tempFilePath = generateTempFilePath();
+        PDDocument doc = null;
+        try {
+            FileUtils.writeByteArrayToFile(new File(tempFilePath), pdfBytes);
+            doc = PDDocument.load(new File(tempFilePath));
+            start = System.currentTimeMillis();
+            OFDCreator ofdCreator = new OFDCreator();
+            for (int i = 0; i < doc.getNumberOfPages(); i++) {
+                OFDPageDrawer ofdPageDrawer = new OFDPageDrawer(doc.getPage(i), ofdCreator);
+                ofdPageDrawer.drawPage();
+            }
+            end = System.currentTimeMillis();
+            return ofdCreator.jar();
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            try {
+                if (doc != null) {
+                    doc.close();
+                }
+                FileUtils.forceDeleteOnExit(new File(tempFilePath));
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+        return null;
     }
 
-
+    protected static String generateTempFilePath() {
+        return System.getProperty("java.io.tmpdir") + "/" + UUID.randomUUID().toString();
+    }
 }

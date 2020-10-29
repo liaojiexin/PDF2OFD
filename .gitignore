@@ -1,4 +1,2 @@
-
-.idea/compiler.xml
-.idea/jarRepositories.xml
-.idea/misc.xml
+/render/target/
+/.idea/

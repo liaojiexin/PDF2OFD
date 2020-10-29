@@ -18,7 +18,9 @@ import java.awt.geom.GeneralPath;
 import java.awt.geom.Point2D;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.HashMap;
 import java.util.Iterator;
+import java.util.Map;
 
 public class OFDPageDrawer extends PDFGraphicsStreamEngine {
 
@@ -26,8 +28,11 @@ public class OFDPageDrawer extends PDFGraphicsStreamEngine {
     private GeneralPath linePath = new GeneralPath();
     private int clipWindingRule = -1;
 
-    protected OFDPageDrawer(PDPage page) throws IOException {
+    private OFDCreator ofdCreator;
+
+    protected OFDPageDrawer(PDPage page, OFDCreator ofdCreator) throws IOException {
         super(page);
+        this.ofdCreator = ofdCreator;
     }
 
     public void drawPage() throws IOException {
@@ -120,17 +125,22 @@ public class OFDPageDrawer extends PDFGraphicsStreamEngine {
         if (font == null) {
             font = PDType1Font.HELVETICA;
         }
+        byte[] fontBytes = null;
         if (font instanceof PDTrueTypeFont) {
-            getFontByte(font.getFontDescriptor(), font.getName());
+            fontBytes = getFontByte(font.getFontDescriptor(), font.getName());
         } else if (font instanceof PDType0Font) {
             PDCIDFont descendantFont = ((PDType0Font) font).getDescendantFont();
-            getFontByte(descendantFont.getFontDescriptor(), font.getName());
+            fontBytes = getFontByte(descendantFont.getFontDescriptor(), font.getName());
         } else if (font instanceof PDType1CFont) {
-            getFontByte(((PDType1CFont) font).getFontDescriptor(), font.getName());
+            fontBytes = getFontByte(((PDType1CFont) font).getFontDescriptor(), font.getName());
+        }
+        if (ofdCreator.getFontMap().get(font.getName()) == null) {
+            long currentID = ofdCreator.putFont(font.getName(), font.getName(), fontBytes, ".otf");
+            ofdCreator.getFontMap().put(font.getName(), String.valueOf(currentID));
         }
     }
 
-    private void getFontByte(PDFontDescriptor fd, String name) throws IOException {
+    private byte[] getFontByte(PDFontDescriptor fd, String name) throws IOException {
         byte[] fontBytes = null;
         if (fd != null) {
             PDStream ff2Stream = fd.getFontFile2();
@@ -148,5 +158,6 @@ public class OFDPageDrawer extends PDFGraphicsStreamEngine {
                 }
             }
         }
+        return fontBytes;
     }
 }
