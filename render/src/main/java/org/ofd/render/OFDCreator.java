@@ -9,9 +9,13 @@ import org.ofdrw.core.basicStructure.doc.Document;
 import org.ofdrw.core.basicStructure.ofd.DocBody;
 import org.ofdrw.core.basicStructure.ofd.OFD;
 import org.ofdrw.core.basicStructure.ofd.docInfo.CT_DocInfo;
+import org.ofdrw.core.basicStructure.res.CT_MultiMedia;
+import org.ofdrw.core.basicStructure.res.MediaType;
 import org.ofdrw.core.basicStructure.res.Res;
 import org.ofdrw.core.basicStructure.res.resources.ColorSpaces;
 import org.ofdrw.core.basicStructure.res.resources.Fonts;
+import org.ofdrw.core.basicStructure.res.resources.MultiMedias;
+import org.ofdrw.core.basicType.ST_ID;
 import org.ofdrw.core.basicType.ST_Loc;
 import org.ofdrw.core.basicType.ST_RefID;
 import org.ofdrw.core.pageDescription.color.colorSpace.BitsPerComponent;
@@ -29,6 +33,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class OFDCreator {
     private Map<String, String> fontMap;
+    private Map<String, String> imageMap;
     private OFDDir ofdDir;
 
     private DocDir docDir;
@@ -47,12 +52,15 @@ public class OFDCreator {
         return fontMap;
     }
 
-    public void setFontMap(Map<String, String> fontMap) {
-        this.fontMap = fontMap;
+    public Map<String, String> getImageMap() {
+        return imageMap;
     }
+
+    private MultiMedias mms;
 
     public OFDCreator() {
         fontMap = new HashMap<>();
+        imageMap = new HashMap<>();
         ofdDir = new OFDDir();
 
         //生成ofd.xml文件
@@ -104,6 +112,10 @@ public class OFDCreator {
     private Res genDocumentRes() {
         Res ret = new Res();
         ret.setBaseLoc(new ST_Loc("Res"));
+
+        mms = new MultiMedias();
+        ret.add(mms);
+
         return ret;
     }
 
@@ -128,21 +140,35 @@ public class OFDCreator {
         return doc;
     }
 
-    public long putFont(String familyName, String fontName, byte[] fontBytes, String suffix) {
+    public void putFont(String familyName, String fontName, byte[] fontBytes, String suffix) {
+        if (this.fontMap.get(fontName) == null) {
+            long currentId = this.getNextRid();
+            CT_Font fntKt = new CT_Font();
+            fntKt.setFamilyName(familyName);
+            fntKt.setFontName(fontName);
+            fntKt.setID(currentId);
+            if (fontBytes != null) {
+                fntKt.setFontFile(new ST_Loc(fontName + suffix));
+                docDir.addResource(fontName + suffix, fontBytes);
+            }
+            Fonts fonts = this.ofdDir.getDocDefault().getPublicRes().getFonts().get(0);
+            if (fonts != null) {
+                this.ofdDir.getDocDefault().getPublicRes().getFonts().get(0).addFont(fntKt);
+            }
+            this.fontMap.put(fontName, String.valueOf(currentId));
+        }
+    }
+
+    public void putImage(String name, byte[] imageBytes, String suffix) {
         long currentId = this.getNextRid();
-        CT_Font fntKt = new CT_Font();
-        fntKt.setFamilyName(familyName);
-        fntKt.setFontName(fontName);
-        fntKt.setID(currentId);
-        if (fontBytes != null) {
-            fntKt.setFontFile(new ST_Loc(fontName + suffix));
-            docDir.addResource(fontName + suffix, fontBytes);
-        }
-        Fonts fonts = this.ofdDir.getDocDefault().getPublicRes().getFonts().get(0);
-        if (fonts != null) {
-            this.ofdDir.getDocDefault().getPublicRes().getFonts().get(0).addFont(fntKt);
-        }
-        return currentId;
+        CT_MultiMedia mmEwm = new CT_MultiMedia();
+        mmEwm.setID(new ST_ID(currentId));
+        mmEwm.setType(MediaType.Image);
+        mmEwm.setFormat(suffix.toUpperCase());
+        mmEwm.setMediaFile(new ST_Loc(name));
+        mms.addMultiMedia(mmEwm);
+        docDir.addResource(name, imageBytes);
+        this.imageMap.put(name, String.valueOf(currentId));
     }
 
     public byte[] jar() throws IOException {

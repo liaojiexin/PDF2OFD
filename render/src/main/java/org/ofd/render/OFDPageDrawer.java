@@ -11,11 +11,15 @@ import org.apache.pdfbox.pdmodel.graphics.image.PDImage;
 import org.apache.pdfbox.pdmodel.graphics.state.PDGraphicsState;
 import org.apache.pdfbox.pdmodel.graphics.state.PDTextState;
 import org.apache.pdfbox.pdmodel.interactive.annotation.PDAnnotation;
+import org.bouncycastle.crypto.Digest;
+import org.bouncycastle.crypto.digests.MD5Digest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.imageio.ImageIO;
 import java.awt.geom.GeneralPath;
 import java.awt.geom.Point2D;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.HashMap;
@@ -51,7 +55,19 @@ public class OFDPageDrawer extends PDFGraphicsStreamEngine {
 
     @Override
     public void drawImage(PDImage pdImage) throws IOException {
+        ByteArrayOutputStream bosImage = new ByteArrayOutputStream();
+        String suffix = "png";
+        ImageIO.write(pdImage.getImage(), suffix, bosImage);
+        String name = String.format("%s.%s", bcMD5(bosImage.toByteArray()), suffix);
+        ofdCreator.putImage(name, bosImage.toByteArray(), suffix);
+    }
 
+    private String bcMD5(byte[] imageBytes) {
+        Digest digest = new MD5Digest();
+        digest.update(imageBytes, 0, imageBytes.length);
+        byte[] md5Bytes = new byte[digest.getDigestSize()];
+        digest.doFinal(md5Bytes, 0);
+        return org.bouncycastle.util.encoders.Hex.toHexString(md5Bytes);
     }
 
     @Override
@@ -134,10 +150,7 @@ public class OFDPageDrawer extends PDFGraphicsStreamEngine {
         } else if (font instanceof PDType1CFont) {
             fontBytes = getFontByte(((PDType1CFont) font).getFontDescriptor(), font.getName());
         }
-        if (ofdCreator.getFontMap().get(font.getName()) == null) {
-            long currentID = ofdCreator.putFont(font.getName(), font.getName(), fontBytes, ".otf");
-            ofdCreator.getFontMap().put(font.getName(), String.valueOf(currentID));
-        }
+        ofdCreator.putFont(font.getName(), font.getName(), fontBytes, ".otf");
     }
 
     private byte[] getFontByte(PDFontDescriptor fd, String name) throws IOException {
