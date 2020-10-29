@@ -160,15 +160,17 @@ public class OFDCreator {
     }
 
     public void putImage(String name, byte[] imageBytes, String suffix) {
-        long currentId = this.getNextRid();
-        CT_MultiMedia mmEwm = new CT_MultiMedia();
-        mmEwm.setID(new ST_ID(currentId));
-        mmEwm.setType(MediaType.Image);
-        mmEwm.setFormat(suffix.toUpperCase());
-        mmEwm.setMediaFile(new ST_Loc(name));
-        mms.addMultiMedia(mmEwm);
-        docDir.addResource(name, imageBytes);
-        this.imageMap.put(name, String.valueOf(currentId));
+        if (this.imageMap.get(name) == null) {
+            long currentId = this.getNextRid();
+            CT_MultiMedia mmEwm = new CT_MultiMedia();
+            mmEwm.setID(new ST_ID(currentId));
+            mmEwm.setType(MediaType.Image);
+            mmEwm.setFormat(suffix.toUpperCase());
+            mmEwm.setMediaFile(new ST_Loc(name));
+            mms.addMultiMedia(mmEwm);
+            docDir.addResource(name, imageBytes);
+            this.imageMap.put(name, String.valueOf(currentId));
+        }
     }
 
     public byte[] jar() throws IOException {

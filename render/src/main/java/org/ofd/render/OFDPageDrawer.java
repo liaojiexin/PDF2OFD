@@ -141,16 +141,18 @@ public class OFDPageDrawer extends PDFGraphicsStreamEngine {
         if (font == null) {
             font = PDType1Font.HELVETICA;
         }
-        byte[] fontBytes = null;
-        if (font instanceof PDTrueTypeFont) {
-            fontBytes = getFontByte(font.getFontDescriptor(), font.getName());
-        } else if (font instanceof PDType0Font) {
-            PDCIDFont descendantFont = ((PDType0Font) font).getDescendantFont();
-            fontBytes = getFontByte(descendantFont.getFontDescriptor(), font.getName());
-        } else if (font instanceof PDType1CFont) {
-            fontBytes = getFontByte(((PDType1CFont) font).getFontDescriptor(), font.getName());
+        if (ofdCreator.getFontMap().get(font.getName()) == null) {
+            byte[] fontBytes = null;
+            if (font instanceof PDTrueTypeFont) {
+                fontBytes = getFontByte(font.getFontDescriptor(), font.getName());
+            } else if (font instanceof PDType0Font) {
+                PDCIDFont descendantFont = ((PDType0Font) font).getDescendantFont();
+                fontBytes = getFontByte(descendantFont.getFontDescriptor(), font.getName());
+            } else if (font instanceof PDType1CFont) {
+                fontBytes = getFontByte(((PDType1CFont) font).getFontDescriptor(), font.getName());
+            }
+            ofdCreator.putFont(font.getName(), font.getName(), fontBytes, ".otf");
         }
-        ofdCreator.putFont(font.getName(), font.getName(), fontBytes, ".otf");
     }
 
     private byte[] getFontByte(PDFontDescriptor fd, String name) throws IOException {
