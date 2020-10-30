@@ -142,6 +142,30 @@ public class OFDPageDrawer extends PDFGraphicsStreamEngine {
             font = PDType1Font.HELVETICA;
         }
         if (ofdCreator.getFontMap().get(font.getName()) == null) {
+
+//            InputStream is = null;
+//            if (font instanceof PDTrueTypeFont) {
+//                PDTrueTypeFont f = (PDTrueTypeFont) font;
+//                is = f.getTrueTypeFont().getOriginalData();
+//            } else if (font instanceof PDType0Font) {
+//                PDType0Font type0Font = (PDType0Font) font;
+//                if (type0Font.getDescendantFont() instanceof PDCIDFontType2) {
+//                    PDCIDFontType2 ff = (PDCIDFontType2) type0Font.getDescendantFont();
+//                    is = ff.getTrueTypeFont().getOriginalData();
+//                } else if (type0Font.getDescendantFont() instanceof PDCIDFontType0) {
+//                    // a Type0 CIDFont contains CFF font
+//                    PDCIDFontType0 cidType0Font = (PDCIDFontType0) type0Font.getDescendantFont();
+//                }
+//            } else if (font instanceof PDType1Font) {
+//                PDType1Font f = (PDType1Font) font;
+//            } else if (font instanceof PDType1CFont) {
+//                PDType1CFont f = (PDType1CFont) font;
+//            } else if (font instanceof PDType3Font) {
+//                PDType3Font f = (PDType3Font) font;
+//            }
+
+
+
             byte[] fontBytes = null;
             if (font instanceof PDTrueTypeFont) {
                 fontBytes = getFontByte(font.getFontDescriptor(), font.getName());
