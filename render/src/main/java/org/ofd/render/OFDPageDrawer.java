@@ -11,8 +11,19 @@ import org.apache.pdfbox.pdmodel.graphics.image.PDImage;
 import org.apache.pdfbox.pdmodel.graphics.state.PDGraphicsState;
 import org.apache.pdfbox.pdmodel.graphics.state.PDTextState;
 import org.apache.pdfbox.pdmodel.interactive.annotation.PDAnnotation;
+import org.apache.pdfbox.util.Matrix;
 import org.bouncycastle.crypto.Digest;
 import org.bouncycastle.crypto.digests.MD5Digest;
+import org.ofdrw.core.OFDElement;
+import org.ofdrw.core.basicStructure.pageObj.layer.CT_Layer;
+import org.ofdrw.core.basicStructure.pageObj.layer.block.ImageObject;
+import org.ofdrw.core.basicType.ST_Array;
+import org.ofdrw.core.basicType.ST_ID;
+import org.ofdrw.core.basicType.ST_RefID;
+import org.ofdrw.core.graph.pathObj.CT_Path;
+import org.ofdrw.core.pageDescription.clips.Area;
+import org.ofdrw.core.pageDescription.clips.CT_Clip;
+import org.ofdrw.core.pageDescription.clips.Clips;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -33,10 +44,20 @@ public class OFDPageDrawer extends PDFGraphicsStreamEngine {
     private int clipWindingRule = -1;
 
     private OFDCreator ofdCreator;
+    private CT_Layer ctLayer;
+    private float scale;
+    private PDPage page;
 
-    protected OFDPageDrawer(PDPage page, OFDCreator ofdCreator) throws IOException {
+    public CT_Layer getCtLayer() {
+        return ctLayer;
+    }
+
+    protected OFDPageDrawer(int idx, PDPage page, OFDCreator ofdCreator, float scale) throws IOException {
         super(page);
+        this.page = page;
         this.ofdCreator = ofdCreator;
+        ctLayer = this.ofdCreator.createLayer();
+        this.scale = scale;
     }
 
     public void drawPage() throws IOException {
@@ -60,6 +81,20 @@ public class OFDPageDrawer extends PDFGraphicsStreamEngine {
         ImageIO.write(pdImage.getImage(), suffix, bosImage);
         String name = String.format("%s.%s", bcMD5(bosImage.toByteArray()), suffix);
         ofdCreator.putImage(name, bosImage.toByteArray(), suffix);
+
+        Matrix ctmNew = this.getGraphicsState().getCurrentTransformationMatrix();
+        float imageXScale = ctmNew.getScalingFactorX();
+        float imageYScale = ctmNew.getScalingFactorY();
+        double x = ctmNew.getTranslateX() * scale;
+        double y = (page.getCropBox().getHeight() - ctmNew.getTranslateY() - imageYScale) * scale;
+        double w = imageXScale * scale;
+        double h = imageYScale * scale;
+
+        ImageObject imageObject = new ImageObject(ofdCreator.getNextRid());
+        imageObject.setBoundary(x, y, w, h);
+        imageObject.setResourceID(new ST_RefID(ST_ID.getInstance(ofdCreator.getImageMap().get(name))));
+        imageObject.setCTM(ST_Array.getInstance(String.format("%.0f 0 0 %.0f 0 0", w, h)));
+        ctLayer.add(imageObject);
     }
 
     private String bcMD5(byte[] imageBytes) {

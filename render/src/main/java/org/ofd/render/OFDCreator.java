@@ -3,12 +3,18 @@ package org.ofd.render;
 import org.ofd.render.config.OfdResIdDefine;
 import org.ofd.render.dir.DocDir;
 import org.ofd.render.dir.OFDDir;
+import org.ofd.render.dir.PageDir;
+import org.ofd.render.dir.PagesDir;
 import org.ofdrw.core.basicStructure.doc.CT_CommonData;
 import org.ofdrw.core.basicStructure.doc.CT_PageArea;
 import org.ofdrw.core.basicStructure.doc.Document;
 import org.ofdrw.core.basicStructure.ofd.DocBody;
 import org.ofdrw.core.basicStructure.ofd.OFD;
 import org.ofdrw.core.basicStructure.ofd.docInfo.CT_DocInfo;
+import org.ofdrw.core.basicStructure.pageObj.Content;
+import org.ofdrw.core.basicStructure.pageObj.layer.CT_Layer;
+import org.ofdrw.core.basicStructure.pageTree.Page;
+import org.ofdrw.core.basicStructure.pageTree.Pages;
 import org.ofdrw.core.basicStructure.res.CT_MultiMedia;
 import org.ofdrw.core.basicStructure.res.MediaType;
 import org.ofdrw.core.basicStructure.res.Res;
@@ -91,6 +97,8 @@ public class OFDCreator {
         Document doc = genDoc();
         docDir.setDocument(doc);
 
+        PagesDir pagesDir = new PagesDir();
+        docDir.setPages(pagesDir);
         return docDir;
     }
 
@@ -137,6 +145,8 @@ public class OFDCreator {
         commonData.setDocumentRes(new ST_Loc("DocumentRes.xml"));
         doc.setCommonData(commonData);
 
+        Pages pages = new Pages();
+        doc.setPages(pages);
         return doc;
     }
 
@@ -171,6 +181,33 @@ public class OFDCreator {
             docDir.addResource(name, imageBytes);
             this.imageMap.put(name, String.valueOf(currentId));
         }
+    }
+
+    public void addPage(int idx) {
+        Page page = new Page(getNextRid(), String.format("Pages/Page_%d/Content.xml", idx));
+        docDir.getDocument().getPages().addPage(page);
+    }
+
+
+
+    public CT_Layer createLayer() {
+        CT_Layer layerInv = new CT_Layer();
+        layerInv.setObjID(new ST_ID(getNextRid()));
+        return layerInv;
+    }
+
+    public void addPageContent(int idx, CT_Layer ctLayer, float width, float height) {
+        PageDir pageDirInv = new PageDir();
+        pageDirInv.setIndex(idx);
+        org.ofdrw.core.basicStructure.pageObj.Page pageInv = new org.ofdrw.core.basicStructure.pageObj.Page();
+        CT_PageArea areaInv = new CT_PageArea();
+        areaInv.setPhysicalBox(0, 0, width, height);
+        pageInv.setArea(areaInv);
+        Content contentInv = new Content();
+        contentInv.addLayer(ctLayer);
+        pageInv.setContent(contentInv);
+        pageDirInv.setContent(pageInv);
+        docDir.getPages().add(pageDirInv);
     }
 
     public byte[] jar() throws IOException {
