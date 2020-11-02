@@ -10,8 +10,23 @@ import org.apache.pdfbox.pdmodel.font.encoding.GlyphList;
 import org.apache.pdfbox.pdmodel.graphics.image.PDImage;
 import org.apache.pdfbox.pdmodel.graphics.state.PDGraphicsState;
 import org.apache.pdfbox.pdmodel.graphics.state.PDTextState;
+<<<<<<< HEAD
+=======
+import org.apache.pdfbox.pdmodel.interactive.annotation.PDAnnotation;
+import org.apache.pdfbox.util.Matrix;
+>>>>>>> 4ef5ec1548a8b0b4d0b2e923033ab942ed0ca0ef
 import org.bouncycastle.crypto.Digest;
 import org.bouncycastle.crypto.digests.MD5Digest;
+import org.ofdrw.core.OFDElement;
+import org.ofdrw.core.basicStructure.pageObj.layer.CT_Layer;
+import org.ofdrw.core.basicStructure.pageObj.layer.block.ImageObject;
+import org.ofdrw.core.basicType.ST_Array;
+import org.ofdrw.core.basicType.ST_ID;
+import org.ofdrw.core.basicType.ST_RefID;
+import org.ofdrw.core.graph.pathObj.CT_Path;
+import org.ofdrw.core.pageDescription.clips.Area;
+import org.ofdrw.core.pageDescription.clips.CT_Clip;
+import org.ofdrw.core.pageDescription.clips.Clips;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -31,15 +46,24 @@ public class OFDPageDrawer extends PDFGraphicsStreamEngine {
 
     private OFDCreator ofdCreator;
     private final GlyphList glyphList;
+    private CT_Layer ctLayer;
+    private float scale;
+    private PDPage page;
 
-    protected OFDPageDrawer(PDPage page, OFDCreator ofdCreator) throws IOException {
+    public CT_Layer getCtLayer() {
+        return ctLayer;
+    }
+
+    protected OFDPageDrawer(int idx, PDPage page, OFDCreator ofdCreator, float scale) throws IOException {
         super(page);
+        this.page = page;
         this.ofdCreator = ofdCreator;
-
         // load additional glyph list for Unicode mapping
         String path = "/org/apache/pdfbox/resources/glyphlist/additional.txt";
         InputStream input = GlyphList.class.getResourceAsStream(path);
         glyphList = new GlyphList(GlyphList.getAdobeGlyphList(), input);
+        ctLayer = this.ofdCreator.createLayer();
+        this.scale = scale;
     }
 
     public void drawPage() throws IOException {
@@ -63,6 +87,20 @@ public class OFDPageDrawer extends PDFGraphicsStreamEngine {
         ImageIO.write(pdImage.getImage(), suffix, bosImage);
         String name = String.format("%s.%s", bcMD5(bosImage.toByteArray()), suffix);
         ofdCreator.putImage(name, bosImage.toByteArray(), suffix);
+
+        Matrix ctmNew = this.getGraphicsState().getCurrentTransformationMatrix();
+        float imageXScale = ctmNew.getScalingFactorX();
+        float imageYScale = ctmNew.getScalingFactorY();
+        double x = ctmNew.getTranslateX() * scale;
+        double y = (page.getCropBox().getHeight() - ctmNew.getTranslateY() - imageYScale) * scale;
+        double w = imageXScale * scale;
+        double h = imageYScale * scale;
+
+        ImageObject imageObject = new ImageObject(ofdCreator.getNextRid());
+        imageObject.setBoundary(x, y, w, h);
+        imageObject.setResourceID(new ST_RefID(ST_ID.getInstance(ofdCreator.getImageMap().get(name))));
+        imageObject.setCTM(ST_Array.getInstance(String.format("%.0f 0 0 %.0f 0 0", w, h)));
+        ctLayer.add(imageObject);
     }
 
     private String bcMD5(byte[] imageBytes) {
@@ -145,6 +183,30 @@ public class OFDPageDrawer extends PDFGraphicsStreamEngine {
             font = PDType1Font.HELVETICA;
         }
         if (ofdCreator.getFontMap().get(font.getName()) == null) {
+
+//            InputStream is = null;
+//            if (font instanceof PDTrueTypeFont) {
+//                PDTrueTypeFont f = (PDTrueTypeFont) font;
+//                is = f.getTrueTypeFont().getOriginalData();
+//            } else if (font instanceof PDType0Font) {
+//                PDType0Font type0Font = (PDType0Font) font;
+//                if (type0Font.getDescendantFont() instanceof PDCIDFontType2) {
+//                    PDCIDFontType2 ff = (PDCIDFontType2) type0Font.getDescendantFont();
+//                    is = ff.getTrueTypeFont().getOriginalData();
+//                } else if (type0Font.getDescendantFont() instanceof PDCIDFontType0) {
+//                    // a Type0 CIDFont contains CFF font
+//                    PDCIDFontType0 cidType0Font = (PDCIDFontType0) type0Font.getDescendantFont();
+//                }
+//            } else if (font instanceof PDType1Font) {
+//                PDType1Font f = (PDType1Font) font;
+//            } else if (font instanceof PDType1CFont) {
+//                PDType1CFont f = (PDType1CFont) font;
+//            } else if (font instanceof PDType3Font) {
+//                PDType3Font f = (PDType3Font) font;
+//            }
+
+
+
             byte[] fontBytes = null;
             if (font instanceof PDTrueTypeFont) {
                 fontBytes = getFontByte(font.getFontDescriptor(), font.getName());

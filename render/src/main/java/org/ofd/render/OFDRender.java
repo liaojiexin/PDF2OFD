@@ -9,6 +9,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.util.*;
 
 public class OFDRender {
@@ -25,8 +26,16 @@ public class OFDRender {
             start = System.currentTimeMillis();
             OFDCreator ofdCreator = new OFDCreator();
             for (int i = 0; i < doc.getNumberOfPages(); i++) {
-                OFDPageDrawer ofdPageDrawer = new OFDPageDrawer(doc.getPage(i), ofdCreator);
+                ofdCreator.addPage(i);
+                PDRectangle cropBox = doc.getPage(i).getCropBox();
+                float widthPt = cropBox.getWidth();
+                float heightPt = cropBox.getHeight();
+                float scale = 210 / widthPt;
+                BigDecimal b = new BigDecimal(scale);
+                scale = b.setScale(2, BigDecimal.ROUND_HALF_UP).floatValue();
+                OFDPageDrawer ofdPageDrawer = new OFDPageDrawer(i, doc.getPage(i), ofdCreator, scale);
                 ofdPageDrawer.drawPage();
+                ofdCreator.addPageContent(i, ofdPageDrawer.getCtLayer(), 210, heightPt*scale);
             }
             end = System.currentTimeMillis();
             logger.info("parse speed time {}", end - start);
