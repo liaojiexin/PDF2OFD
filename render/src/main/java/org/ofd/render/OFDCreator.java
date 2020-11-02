@@ -132,7 +132,6 @@ public class OFDCreator {
 
         //1. 创建commonData
         CT_CommonData commonData = new CT_CommonData();
-        commonData.setMaxUnitID(getCurrRid());
         commonData.setDefaultCS(new ST_RefID(OfdResIdDefine.RID_ColorSpace));
 
         //1.1页面区域
@@ -211,6 +210,7 @@ public class OFDCreator {
     }
 
     public byte[] jar() throws IOException {
+        docDir.getDocument().getCommonData().setMaxUnitID(getCurrRid());
 
         Map<String, byte[]> virtualFileMap = new ConcurrentHashMap<>();
         byte[] ofdByte = ofdDir.jar(virtualFileMap);
