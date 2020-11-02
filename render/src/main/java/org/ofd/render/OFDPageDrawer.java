@@ -10,11 +10,8 @@ import org.apache.pdfbox.pdmodel.font.encoding.GlyphList;
 import org.apache.pdfbox.pdmodel.graphics.image.PDImage;
 import org.apache.pdfbox.pdmodel.graphics.state.PDGraphicsState;
 import org.apache.pdfbox.pdmodel.graphics.state.PDTextState;
-<<<<<<< HEAD
-=======
 import org.apache.pdfbox.pdmodel.interactive.annotation.PDAnnotation;
 import org.apache.pdfbox.util.Matrix;
->>>>>>> 4ef5ec1548a8b0b4d0b2e923033ab942ed0ca0ef
 import org.bouncycastle.crypto.Digest;
 import org.bouncycastle.crypto.digests.MD5Digest;
 import org.ofdrw.core.OFDElement;
