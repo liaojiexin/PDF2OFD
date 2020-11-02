@@ -10,7 +10,6 @@ import org.apache.pdfbox.pdmodel.font.encoding.GlyphList;
 import org.apache.pdfbox.pdmodel.graphics.image.PDImage;
 import org.apache.pdfbox.pdmodel.graphics.state.PDGraphicsState;
 import org.apache.pdfbox.pdmodel.graphics.state.PDTextState;
-import org.apache.pdfbox.pdmodel.interactive.annotation.PDAnnotation;
 import org.bouncycastle.crypto.Digest;
 import org.bouncycastle.crypto.digests.MD5Digest;
 import org.slf4j.Logger;
@@ -19,12 +18,10 @@ import org.slf4j.LoggerFactory;
 import javax.imageio.ImageIO;
 import java.awt.geom.GeneralPath;
 import java.awt.geom.Point2D;
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.Map;
 
 public class OFDPageDrawer extends PDFGraphicsStreamEngine {
 
@@ -33,10 +30,16 @@ public class OFDPageDrawer extends PDFGraphicsStreamEngine {
     private int clipWindingRule = -1;
 
     private OFDCreator ofdCreator;
+    private final GlyphList glyphList;
 
     protected OFDPageDrawer(PDPage page, OFDCreator ofdCreator) throws IOException {
         super(page);
         this.ofdCreator = ofdCreator;
+
+        // load additional glyph list for Unicode mapping
+        String path = "/org/apache/pdfbox/resources/glyphlist/additional.txt";
+        InputStream input = GlyphList.class.getResourceAsStream(path);
+        glyphList = new GlyphList(GlyphList.getAdobeGlyphList(), input);
     }
 
     public void drawPage() throws IOException {
@@ -149,10 +152,23 @@ public class OFDPageDrawer extends PDFGraphicsStreamEngine {
                 PDCIDFont descendantFont = ((PDType0Font) font).getDescendantFont();
                 fontBytes = getFontByte(descendantFont.getFontDescriptor(), font.getName());
             } else if (font instanceof PDType1CFont) {
-                fontBytes = getFontByte(((PDType1CFont) font).getFontDescriptor(), font.getName());
+                fontBytes = getFontByte(font.getFontDescriptor(), font.getName());
             }
             ofdCreator.putFont(font.getName(), font.getName(), fontBytes, ".otf");
         }
+
+        InputStream in = new ByteArrayInputStream(string);
+        StringBuilder builder = new StringBuilder();
+        while (in.available() > 0) {
+            // decode a character
+            int before = in.available();
+            int code = font.readCode(in);
+            int codeLength = before - in.available();
+            String unicode = font.toUnicode(code, glyphList);
+            builder.append(unicode);
+        }
+        System.out.println(builder.toString());
+
     }
 
     private byte[] getFontByte(PDFontDescriptor fd, String name) throws IOException {
