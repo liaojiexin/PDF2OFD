@@ -1,5 +1,6 @@
 package org.ofd.render;
 
+import org.apache.fontbox.util.BoundingBox;
 import org.apache.pdfbox.contentstream.PDFGraphicsStreamEngine;
 import org.apache.pdfbox.cos.COSName;
 import org.apache.pdfbox.io.IOUtils;
@@ -7,23 +8,23 @@ import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.common.PDStream;
 import org.apache.pdfbox.pdmodel.font.*;
 import org.apache.pdfbox.pdmodel.font.encoding.GlyphList;
+import org.apache.pdfbox.pdmodel.graphics.color.PDColor;
+import org.apache.pdfbox.pdmodel.graphics.color.PDColorSpace;
 import org.apache.pdfbox.pdmodel.graphics.image.PDImage;
 import org.apache.pdfbox.pdmodel.graphics.state.PDGraphicsState;
 import org.apache.pdfbox.pdmodel.graphics.state.PDTextState;
-import org.apache.pdfbox.pdmodel.interactive.annotation.PDAnnotation;
 import org.apache.pdfbox.util.Matrix;
 import org.bouncycastle.crypto.Digest;
 import org.bouncycastle.crypto.digests.MD5Digest;
-import org.ofdrw.core.OFDElement;
 import org.ofdrw.core.basicStructure.pageObj.layer.CT_Layer;
 import org.ofdrw.core.basicStructure.pageObj.layer.block.ImageObject;
+import org.ofdrw.core.basicStructure.pageObj.layer.block.TextObject;
 import org.ofdrw.core.basicType.ST_Array;
 import org.ofdrw.core.basicType.ST_ID;
 import org.ofdrw.core.basicType.ST_RefID;
-import org.ofdrw.core.graph.pathObj.CT_Path;
-import org.ofdrw.core.pageDescription.clips.Area;
-import org.ofdrw.core.pageDescription.clips.CT_Clip;
-import org.ofdrw.core.pageDescription.clips.Clips;
+import org.ofdrw.core.pageDescription.color.color.CT_Color;
+import org.ofdrw.core.text.TextCode;
+import org.ofdrw.core.text.text.Weight;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -179,8 +180,8 @@ public class OFDPageDrawer extends PDFGraphicsStreamEngine {
         if (font == null) {
             font = PDType1Font.HELVETICA;
         }
-        if (ofdCreator.getFontMap().get(font.getName()) == null) {
-
+        String fontId = ofdCreator.getFontMap().get(font.getName());
+        if (fontId == null) {
 //            InputStream is = null;
 //            if (font instanceof PDTrueTypeFont) {
 //                PDTrueTypeFont f = (PDTrueTypeFont) font;
@@ -203,7 +204,6 @@ public class OFDPageDrawer extends PDFGraphicsStreamEngine {
 //            }
 
 
-
             byte[] fontBytes = null;
             if (font instanceof PDTrueTypeFont) {
                 fontBytes = getFontByte(font.getFontDescriptor(), font.getName());
@@ -213,21 +213,46 @@ public class OFDPageDrawer extends PDFGraphicsStreamEngine {
             } else if (font instanceof PDType1CFont) {
                 fontBytes = getFontByte(font.getFontDescriptor(), font.getName());
             }
-            ofdCreator.putFont(font.getName(), font.getName(), fontBytes, ".otf");
+            fontId = ofdCreator.putFont(font.getName(), font.getName(), fontBytes, ".otf");
         }
 
+        double fontSize = textState.getFontSize() * 0.3527f;
+        BoundingBox fontBoundingBox = font.getBoundingBox();
         InputStream in = new ByteArrayInputStream(string);
-        StringBuilder builder = new StringBuilder();
         while (in.available() > 0) {
-            // decode a character
-            int before = in.available();
             int code = font.readCode(in);
-            int codeLength = before - in.available();
             String unicode = font.toUnicode(code, glyphList);
-            builder.append(unicode);
-        }
-        System.out.println(builder.toString());
+            Matrix ctm = state.getCurrentTransformationMatrix();
 
+            TextObject text = new TextObject(ofdCreator.getNextRid());
+            text.setBoundary(getTextMatrix().getTranslateX() * scale,
+                    (page.getCropBox().getHeight() - getTextMatrix().getTranslateY()) * scale - fontSize,
+                    fontSize,
+                    fontBoundingBox.getHeight() * fontSize / fontBoundingBox.getWidth() + 2);
+
+            text.setSize(fontSize);
+            text.setFont(Long.valueOf(fontId));
+            text.setCTM(new ST_Array(ctm.getScaleX(), 0, 0, ctm.getScaleY(), 0, 0));
+
+            float fontWeight = font.getFontDescriptor().getFontWeight();
+            if (fontWeight > 0) {
+                text.setWeight(Weight.getInstance((int) (fontWeight)));
+            }
+
+            PDColor strokingColor = state.getNonStrokingColor();
+            PDColorSpace colorSpace = strokingColor.getColorSpace();
+            {
+                float[] rgb = colorSpace.toRGB(strokingColor.getComponents());
+                text.setFillColor(CT_Color.rgb(toRgbNumber(rgb[0]), toRgbNumber(rgb[1]), toRgbNumber(rgb[2])));
+            }
+
+            TextCode textCode = new TextCode();
+            textCode.setX(0d);
+            textCode.setY(fontSize);
+            textCode.setContent(unicode);
+            text.addTextCode(textCode);
+            ctLayer.add(text);
+        }
     }
 
     private byte[] getFontByte(PDFontDescriptor fd, String name) throws IOException {
@@ -249,5 +274,12 @@ public class OFDPageDrawer extends PDFGraphicsStreamEngine {
             }
         }
         return fontBytes;
+    }
+
+    /**
+     * 转换为rgb
+     */
+    private int toRgbNumber(float color) {
+        return color < 0 ? 0 : (int) ((color > 1 ? 1 : color) * 255);
     }
 }
