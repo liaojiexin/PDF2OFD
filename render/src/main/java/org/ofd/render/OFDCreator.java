@@ -88,7 +88,7 @@ public class OFDCreator {
         ofdDir.setOfd(ofd);
     }
 
-    private DocDir genDocDir()  {
+    private DocDir genDocDir() {
         SimpleDateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 
         docDir = new DocDir();
@@ -149,7 +149,8 @@ public class OFDCreator {
         return doc;
     }
 
-    public void putFont(String familyName, String fontName, byte[] fontBytes, String suffix) {
+    public String putFont(String familyName, String fontName, byte[] fontBytes, String suffix) {
+        String fontId = this.fontMap.get(fontName);
         if (this.fontMap.get(fontName) == null) {
             long currentId = this.getNextRid();
             CT_Font fntKt = new CT_Font();
@@ -164,8 +165,10 @@ public class OFDCreator {
             if (fonts != null) {
                 this.ofdDir.getDocDefault().getPublicRes().getFonts().get(0).addFont(fntKt);
             }
-            this.fontMap.put(fontName, String.valueOf(currentId));
+            fontId = String.valueOf(currentId);
+            this.fontMap.put(fontName, fontId);
         }
+        return fontId;
     }
 
     public void putImage(String name, byte[] imageBytes, String suffix) {
@@ -186,7 +189,6 @@ public class OFDCreator {
         Page page = new Page(getNextRid(), String.format("Pages/Page_%d/Content.xml", idx));
         docDir.getDocument().getPages().addPage(page);
     }
-
 
 
     public CT_Layer createLayer() {
