@@ -14,6 +14,7 @@ import org.apache.pdfbox.pdmodel.graphics.image.PDImage;
 import org.apache.pdfbox.pdmodel.graphics.state.PDGraphicsState;
 import org.apache.pdfbox.pdmodel.graphics.state.PDTextState;
 import org.apache.pdfbox.util.Matrix;
+import org.apache.pdfbox.util.Vector;
 import org.bouncycastle.crypto.Digest;
 import org.bouncycastle.crypto.digests.MD5Digest;
 import org.ofdrw.core.basicStructure.pageObj.layer.CT_Layer;
@@ -216,43 +217,85 @@ public class OFDPageDrawer extends PDFGraphicsStreamEngine {
             fontId = ofdCreator.putFont(font.getName(), font.getName(), fontBytes, ".otf");
         }
 
-        double fontSize = textState.getFontSize() * 0.3527f;
+        float horizontalScaling = textState.getHorizontalScaling() / 100f;
+
+        Matrix parameters = new Matrix(
+                textState.getFontSize() * horizontalScaling, 0,
+                0, textState.getFontSize(),
+                0, textState.getRise());
+
         BoundingBox fontBoundingBox = font.getBoundingBox();
         InputStream in = new ByteArrayInputStream(string);
+        float offsetX = 0;
         while (in.available() > 0) {
-            int code = font.readCode(in);
+            int before = in.available(), code = font.readCode(in), codeLength = before - in.available();
+            float wordSpacing = 0, charSpacing = textState.getCharacterSpacing();
+            if (codeLength == 1 && code == 32) {
+                wordSpacing += textState.getWordSpacing();
+            }
+
+            Vector wh = font.getDisplacement(code);
+            float tx;
+            float ty;
+            if (font.isVertical()) {
+                tx = 0;
+                ty = wh.getY() * textState.getFontSize() + charSpacing + wordSpacing;
+            } else {
+                tx = (wh.getX() * textState.getFontSize() + charSpacing + wordSpacing) * horizontalScaling;
+                ty = 0;
+            }
+
             String unicode = font.toUnicode(code, glyphList);
             Matrix ctm = state.getCurrentTransformationMatrix();
+            Matrix textMatrix = parameters.multiply(getTextMatrix()).multiply(ctm);
+
+            double fontSize = textState.getFontSize() * scale;
+            if (textMatrix.getScaleX() == textMatrix.getScaleY()) {
+                fontSize = textMatrix.getScaleY() * scale;
+            }
+
+            double topLeftX = textMatrix.getTranslateX() * scale + offsetX;
+            double topLeftY = (page.getCropBox().getHeight() - textMatrix.getTranslateY()) * scale - fontSize;
+            double w = fontSize;
+            double h = fontBoundingBox.getHeight() * fontSize / fontBoundingBox.getWidth() + 2;
 
             TextObject text = new TextObject(ofdCreator.getNextRid());
-            text.setBoundary(getTextMatrix().getTranslateX() * scale,
-                    (page.getCropBox().getHeight() - getTextMatrix().getTranslateY()) * scale - fontSize,
-                    fontSize,
-                    fontBoundingBox.getHeight() * fontSize / fontBoundingBox.getWidth() + 2);
+            text.setHScale((double) horizontalScaling);
+            text.setBoundary(topLeftX, topLeftY, w, h);
 
             text.setSize(fontSize);
             text.setFont(Long.valueOf(fontId));
-            text.setCTM(new ST_Array(ctm.getScaleX(), 0, 0, ctm.getScaleY(), 0, 0));
+
+            if (Math.abs(ctm.getScaleX()) != Math.abs(ctm.getScaleY())) {
+                text.setCTM(new ST_Array(Math.abs(ctm.getScaleX()), 0, 0, Math.abs(ctm.getScaleY()), 0, 0));
+            }
 
             float fontWeight = font.getFontDescriptor().getFontWeight();
             if (fontWeight > 0) {
                 text.setWeight(Weight.getInstance((int) (fontWeight)));
             }
 
-            PDColor strokingColor = state.getNonStrokingColor();
-            PDColorSpace colorSpace = strokingColor.getColorSpace();
-            {
-                float[] rgb = colorSpace.toRGB(strokingColor.getComponents());
+            PDColor nonStrokingColor = state.getNonStrokingColor();
+            if (nonStrokingColor != null) {
+                PDColorSpace colorSpace = nonStrokingColor.getColorSpace();
+                float[] rgb = colorSpace.toRGB(nonStrokingColor.getComponents());
                 text.setFillColor(CT_Color.rgb(toRgbNumber(rgb[0]), toRgbNumber(rgb[1]), toRgbNumber(rgb[2])));
             }
 
-            TextCode textCode = new TextCode();
-            textCode.setX(0d);
-            textCode.setY(fontSize);
-            textCode.setContent(unicode);
-            text.addTextCode(textCode);
+            addTextCode(unicode, fontSize, text);
             ctLayer.add(text);
         }
+    }
+
+    /**
+     * 添加TextCode
+     */
+    private void addTextCode(String unicode, double fontSize, TextObject text) {
+        TextCode textCode = new TextCode();
+        textCode.setX(0d);
+        textCode.setY(fontSize);
+        textCode.setContent(unicode);
+        text.addTextCode(textCode);
     }
 
     private byte[] getFontByte(PDFontDescriptor fd, String name) throws IOException {
