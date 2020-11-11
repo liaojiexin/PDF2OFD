@@ -1,12 +1,16 @@
 package org.ofd;
 
 import org.apache.commons.io.FileUtils;
-import org.ofd.render.OFDCreator;
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.rendering.PDFRenderer;
 import org.ofd.render.OFDRender;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
 import java.io.File;
+import java.io.IOException;
 import java.util.Objects;
 
 public class Test {
@@ -15,8 +19,8 @@ public class Test {
 
     @org.junit.Test
     public void convertToOfd() {
-        String pdfFilePath = basePath + "n.pdf";
-        String ofdOutPath = basePath + "n-from-pdf.ofd";
+        String pdfFilePath = basePath + "sc.pdf";
+        String ofdOutPath = basePath + "sc-from-pdf.ofd";
         for (int i = 0; i < 1; i++) {
             try {
                 byte[] pdfBytes = FileUtils.readFileToByteArray(new File(pdfFilePath));
@@ -31,5 +35,14 @@ public class Test {
                 logger.error("test convert failed", e);
             }
         }
+    }
+
+    @org.junit.Test
+    public void testConvertToImage() throws IOException {
+        PDDocument doc = PDDocument.load(new File("E:/source/PDF2OFD/render/src/test/resources/m.pdf"));
+        BufferedImage image = new PDFRenderer(doc).renderImage(0, 300 / 72);
+        File output = new File("image.png");
+        ImageIO.write(image, "png", output);
+        doc.close();
     }
 }
