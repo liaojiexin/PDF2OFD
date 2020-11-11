@@ -175,67 +175,74 @@ public class OFDPageDrawer extends PDFGraphicsStreamEngine {
 
     @Override
     public void strokePath() throws IOException {
-        double x = 0, y = 0;
-        float w = page.getCropBox().getWidth() * scale;
-        float h = page.getCropBox().getHeight() * scale;
-
-        double lineWidth = getGraphicsState().getLineWidth() * scale;
-        ctLayer.add(getPathObject(x, y, w, h, lineWidth, getStrokeColor(), false));
+        ctLayer.add(getPathObject(getStrokeColor(), false));
         linePath.reset();
     }
 
     @Override
     public void fillPath(int i) throws IOException {
-        double x = 0, y = 0;
-        float w = page.getCropBox().getWidth() * scale;
-        float h = page.getCropBox().getHeight() * scale;
-
-        double lineWidth = getGraphicsState().getLineWidth() * scale;
-        ctLayer.add(getPathObject(x, y, w, h, lineWidth, getStrokeColor(), true));
+        ctLayer.add(getPathObject(getStrokeColor(), true));
         linePath.reset();
     }
 
-    private PathObject getPathObject(double x, double y, float w, float h, double lineWidth, CT_Color strokeColor, boolean fill) throws IOException {
-        PathObject po = new PathObject(ST_ID.getInstance(String.valueOf(ofdCreator.getNextRid())));
+    /**
+     * 获取路径对象
+     */
+    private PathObject getPathObject(CT_Color strokeColor, boolean fill) throws IOException {
+        double x = 0, y = 0;
+        float w = page.getCropBox().getWidth() * scale;
+        float h = page.getCropBox().getHeight() * scale;
+        double lineWidth = getGraphicsState().getLineWidth() * scale;
+
+        PathObject path = new PathObject(ST_ID.getInstance(String.valueOf(ofdCreator.getNextRid())));
 
         if (strokeColor != null) {
-            po.setStroke(true);
-            po.setStrokeColor(strokeColor);
+            path.setStroke(true);
+            path.setStrokeColor(strokeColor);
         } else {
-            po.setStroke(false);
+            path.setStroke(false);
         }
 
-        po.setLineWidth(lineWidth);
-        po.setBoundary(x, y, w, h);
+        path.setLineWidth(lineWidth);
+        path.setBoundary(x, y, w, h);
         AbbreviatedData data = new AbbreviatedData();
         drawLine(linePath.getPathIterator(null), data, h);
         if (fill) {
             CT_Color nonStrokeColor = getNonStrokeColor();
             if (nonStrokeColor != null) {
-                po.setFillColor(nonStrokeColor);
-                po.setFill(true);
+                path.setFillColor(nonStrokeColor);
+                path.setFill(true);
             }
         } else {
-            po.setFill(false);
+            path.setFill(false);
         }
-        po.setAbbreviatedData(data);
-        return po;
+        path.setAbbreviatedData(data);
+        return path;
     }
 
+    /**
+     * 获取非stroke颜色
+     */
     private CT_Color getNonStrokeColor() throws IOException {
         PDColor strokingColor = getGraphicsState().getNonStrokingColor();
         return getColor(strokingColor);
     }
 
+    /**
+     * 获取stroke颜色
+     */
     private CT_Color getStrokeColor() throws IOException {
         PDColor strokingColor = getGraphicsState().getStrokingColor();
         return getColor(strokingColor);
     }
 
-    private void drawLine(PathIterator pi, AbbreviatedData data, float height) throws IOException {
+    /**
+     * 画线
+     */
+    private void drawLine(PathIterator iterator, AbbreviatedData data, float height) throws IOException {
         double[] coords = new double[6];
-        while (!pi.isDone()) {
-            switch (pi.currentSegment(coords)) {
+        while (!iterator.isDone()) {
+            switch (iterator.currentSegment(coords)) {
                 case SEG_MOVETO:
                     data.moveTo(coords[0] * scale, height - coords[1] * scale);
                     break;
@@ -254,7 +261,7 @@ public class OFDPageDrawer extends PDFGraphicsStreamEngine {
                 default:
                     break;
             }
-            pi.next();
+            iterator.next();
         }
     }
 
