@@ -175,34 +175,26 @@ public class OFDPageDrawer extends PDFGraphicsStreamEngine {
 
     @Override
     public void strokePath() throws IOException {
-        ctLayer.add(getPathObject(getStrokeColor(), false));
+        ctLayer.add(getPathObject(false));
         linePath.reset();
     }
 
     @Override
     public void fillPath(int i) throws IOException {
-        ctLayer.add(getPathObject(getStrokeColor(), true));
+        ctLayer.add(getPathObject(true));
         linePath.reset();
     }
 
     /**
      * 获取路径对象
      */
-    private PathObject getPathObject(CT_Color strokeColor, boolean fill) throws IOException {
+    private PathObject getPathObject(boolean fill) throws IOException {
         double x = 0, y = 0;
         float w = page.getCropBox().getWidth() * scale;
         float h = page.getCropBox().getHeight() * scale;
         double lineWidth = getGraphicsState().getLineWidth() * scale;
 
         PathObject path = new PathObject(ST_ID.getInstance(String.valueOf(ofdCreator.getNextRid())));
-
-        if (strokeColor != null) {
-            path.setStroke(true);
-            path.setStrokeColor(strokeColor);
-        } else {
-            path.setStroke(false);
-        }
-
         path.setLineWidth(lineWidth);
         path.setBoundary(x, y, w, h);
         AbbreviatedData data = new AbbreviatedData();
@@ -212,9 +204,17 @@ public class OFDPageDrawer extends PDFGraphicsStreamEngine {
             if (nonStrokeColor != null) {
                 path.setFillColor(nonStrokeColor);
                 path.setFill(true);
+                path.setStroke(false);
             }
         } else {
-            path.setFill(false);
+            CT_Color strokeColor = getStrokeColor();
+            if (strokeColor != null) {
+                path.setStroke(true);
+                path.setFill(false);
+                path.setStrokeColor(strokeColor);
+            } else {
+                path.setStroke(false);
+            }
         }
         path.setAbbreviatedData(data);
         return path;
@@ -224,16 +224,22 @@ public class OFDPageDrawer extends PDFGraphicsStreamEngine {
      * 获取非stroke颜色
      */
     private CT_Color getNonStrokeColor() throws IOException {
-        PDColor strokingColor = getGraphicsState().getNonStrokingColor();
-        return getColor(strokingColor);
+        PDColor color = getGraphicsState().getNonStrokingColor();
+        if (color == null) {
+            return null;
+        }
+        return getColor(color);
     }
 
     /**
      * 获取stroke颜色
      */
     private CT_Color getStrokeColor() throws IOException {
-        PDColor strokingColor = getGraphicsState().getStrokingColor();
-        return getColor(strokingColor);
+        PDColor color = getGraphicsState().getStrokingColor();
+        if (color == null) {
+            return null;
+        }
+        return getColor(color);
     }
 
     /**
