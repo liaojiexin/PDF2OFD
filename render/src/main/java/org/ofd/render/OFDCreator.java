@@ -170,6 +170,29 @@ public class OFDCreator {
         }
         return fontId;
     }
+    
+    // 以hashcode作为文件名，防止字体重名
+    public String putFont(String fontHash, String familyName, String fontName, byte[] fontBytes, String suffix) {
+        String fontId = this.fontMap.get(fontHash);
+        if (fontId == null) {
+            long currentId = this.getNextRid();
+            CT_Font fntKt = new CT_Font();
+            fntKt.setFamilyName(familyName);
+            fntKt.setFontName(fontName);
+            fntKt.setID(currentId);
+            if (fontBytes != null) {
+                fntKt.setFontFile(new ST_Loc(fontHash + suffix));
+                docDir.addResource(fontHash + suffix, fontBytes);
+            }
+            Fonts fonts = this.ofdDir.getDocDefault().getPublicRes().getFonts().get(0);
+            if (fonts != null) {
+                this.ofdDir.getDocDefault().getPublicRes().getFonts().get(0).addFont(fntKt);
+            }
+            fontId = String.valueOf(currentId);
+            this.fontMap.put(fontHash, fontId);
+        }
+        return fontId;
+    }
 
     public void putImage(String name, byte[] imageBytes, String suffix) {
         if (this.imageMap.get(name) == null) {
