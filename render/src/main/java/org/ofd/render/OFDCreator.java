@@ -181,8 +181,8 @@ public class OFDCreator {
             fntKt.setFontName(fontName);
             fntKt.setID(currentId);
             if (fontBytes != null) {
-                fntKt.setFontFile(new ST_Loc(fontHash + suffix));
-                docDir.addResource(fontHash + suffix, fontBytes);
+                fntKt.setFontFile(new ST_Loc("font_"+currentId + suffix));
+                docDir.addResource("font_"+currentId + suffix, fontBytes);
             }
             Fonts fonts = this.ofdDir.getDocDefault().getPublicRes().getFonts().get(0);
             if (fonts != null) {

@@ -1,6 +1,18 @@
 package org.ofd.render;
 
 
+import java.awt.geom.AffineTransform;
+import java.awt.geom.GeneralPath;
+import java.awt.geom.PathIterator;
+import java.awt.geom.Point2D;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.List;
+
+import javax.imageio.ImageIO;
+
 import org.apache.commons.io.IOUtils;
 import org.apache.fontbox.ttf.CmapLookup;
 import org.apache.fontbox.ttf.TrueTypeFont;
@@ -9,7 +21,16 @@ import org.apache.pdfbox.contentstream.PDFGraphicsStreamEngine;
 import org.apache.pdfbox.cos.COSName;
 import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.common.PDStream;
-import org.apache.pdfbox.pdmodel.font.*;
+import org.apache.pdfbox.pdmodel.font.PDCIDFont;
+import org.apache.pdfbox.pdmodel.font.PDCIDFontType0;
+import org.apache.pdfbox.pdmodel.font.PDCIDFontType2;
+import org.apache.pdfbox.pdmodel.font.PDFont;
+import org.apache.pdfbox.pdmodel.font.PDFontDescriptor;
+import org.apache.pdfbox.pdmodel.font.PDTrueTypeFont;
+import org.apache.pdfbox.pdmodel.font.PDType0Font;
+import org.apache.pdfbox.pdmodel.font.PDType1CFont;
+import org.apache.pdfbox.pdmodel.font.PDType1Font;
+import org.apache.pdfbox.pdmodel.font.PDType3Font;
 import org.apache.pdfbox.pdmodel.font.encoding.GlyphList;
 import org.apache.pdfbox.pdmodel.graphics.color.PDColor;
 import org.apache.pdfbox.pdmodel.graphics.color.PDColorSpace;
@@ -36,17 +57,6 @@ import org.ofdrw.core.text.CT_CGTransfrom;
 import org.ofdrw.core.text.TextCode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import javax.imageio.ImageIO;
-import java.awt.geom.AffineTransform;
-import java.awt.geom.GeneralPath;
-import java.awt.geom.PathIterator;
-import java.awt.geom.Point2D;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.util.ArrayList;
-import java.util.List;
 
 public class OFDPageDrawer extends PDFGraphicsStreamEngine {
 
@@ -539,54 +549,27 @@ public class OFDPageDrawer extends PDFGraphicsStreamEngine {
             transform.rotate(Math.toRadians(angle), textPosition.getWidth(),
                     textPosition.getHeight());
 
-            Double[] textBoundary = getTextBoundary(unicode,
-                    textRenderingMatrix);
-            if (angle == 0) {
-                $textCode.setX(0d);
-                $textCode.setY((double) fontSize);
-            } else {
-                if (angle == 90 || angle == 270) {
-                    Float fontW = fontSize
-                            * Math.abs(nextTextRenderingMatrix.getShearX());
-                    if (nextTextRenderingMatrix.getShearX() > 0) {
-                        $textCode.setX(fontW * 3d);
-                    } else {
-                        $textCode.setX(-(double) fontSize);
-                        $textCode.setY((double) fontSize);
-                    }
-                } else if (angle < 90) {
-                    $textCode.setX(fontSize * (angle / 90));
-                    $textCode.setY(fontSize - $textCode.getX());
-                } else if (angle > 270) {
-                    $textCode.setX(fontSize * ((angle - 360) / 90));
-                    $textCode.setY(fontSize + Math.abs($textCode.getX() / 2));
-                } else {
-                    $textCode.setX(transform.getTranslateX());
-                    $textCode.setY(transform.getTranslateY());
-                }
-            }
-
-            if (angle == 0d) {
-                $textObj.setBoundary(
-                        textPosition.getX() / PX2MM,
-                        Math.abs(
-                                textPosition.getY() / PX2MM
-                                        - fontSize),
-                        textRenderingMatrix.getScaleX()
-                                / PX2MM,
-                        dyDisplay).setFont(fontInt)
-                        .setSize((double) fontSize);
-            } else {
-                Float fontW = fontSize;
-                if (angle == 90) {
-                    fontW = fontSize
-                            * Math.abs(nextTextRenderingMatrix.getShearX());
-                }
-                $textObj.setBoundary(textBoundary[0],
-                        textBoundary[1], fontW,
-                        textPosition.getHeight()).setFont(fontInt)
-                        .setSize((double) fontSize);
-            }
+            if (angle == 0)
+			{
+				$textCode.setX(0d);
+				$textCode.setY((double)fontSize);
+				$textObj.setBoundary(
+								textPosition.getX() / PX2MM,
+						Math.abs(
+								textPosition.getY() / PX2MM
+										- fontSize),
+						textRenderingMatrix.getScaleX()
+								/ PX2MM,
+						dyDisplay).setFont(fontInt)
+						.setSize((double)fontSize);
+			}
+			else
+			{
+				$textCode.setX(0d);
+				$textCode.setY(0d);
+				$textObj.setBoundary(0, 0, textPosition.getX(),
+						textPosition.getY()).setFont(fontInt).setSize(fontSize / (double)PX2MM);
+			}
 
         }
 
@@ -656,25 +639,21 @@ public class OFDPageDrawer extends PDFGraphicsStreamEngine {
                     new ST_Array(scaleX, ctm.getShearX() / PX2MM,
                             ctm.getShearY() / PX2MM, scaleY, 0, 0));
         } else {
-            // 效果最好
             $textObj.setCTM(new ST_Array(
-                    nextTextRenderingMatrix.getScaleX()
-                            / PX2MM,
-                    nextTextRenderingMatrix.getShearX()
-                            / PX2MM,
-                    nextTextRenderingMatrix.getShearY()
-                            / PX2MM,
-                    nextTextRenderingMatrix.getScaleY()
-                            / PX2MM,
-                    0, 0));
+					nextTextRenderingMatrix.getScaleX(),
+					nextTextRenderingMatrix.getShearX(),
+					nextTextRenderingMatrix.getShearY(),
+					nextTextRenderingMatrix.getScaleY(),
+					textPosition.getX() / PX2MM,
+					textPosition.getY() / PX2MM));
         }
         $stringIndex++;
     }
 
     private byte[] writeFont(PDFont font) {
         byte[] fontBytes = null;
+        InputStream is = null;
         try {
-            InputStream is = null;
             if (font instanceof PDTrueTypeFont) {
                 PDTrueTypeFont f = (PDTrueTypeFont) font;
                 is = f.getTrueTypeFont().getOriginalData();
@@ -771,7 +750,9 @@ public class OFDPageDrawer extends PDFGraphicsStreamEngine {
             }
         } catch (Exception e) {
             logger.error("生成字体文件异常:" + font.getName(), e);
-        }
+        } finally {
+			IOUtils.closeQuietly(is);
+		}
         return fontBytes;
     }
 
@@ -858,104 +839,20 @@ public class OFDPageDrawer extends PDFGraphicsStreamEngine {
         return ctColor;
     }
 
-    private Double[] getTextBoundary(String unicode, Matrix ctm) {
-        // Matrix ctm = getGraphicsState().getCurrentTransformationMatrix();
-        AffineTransform at = ctm.createAffineTransform();
-        // AffineTransform依次顺序 scaleX shearX translateX shearY scaleY
-        // translateY
-        Double sx = 0d, sy = 0d;
-        Double tx = 0d, ty = at.getTranslateY();
-        Double scaleX = at.getScaleX();
-        Double scaleY = at.getScaleY();
-        Double shearX = at.getShearX();
-        Double shearY = at.getShearY();
-
-        if (at.getShearX() > at.getShearY()) {
-            sx = at.getShearX() / PX2MM;
-            tx = at.getTranslateX() / PX2MM;
-        } else if (at.getShearX() < at.getShearY()) {
-            sy = at.getShearY() / PX2MM;
-            tx = at.getTranslateX() / PX2MM;
-            tx = tx - Math.abs(at.getShearX() / PX2MM);
-        } else {
-            sx = at.getShearX() / PX2MM;
-            sy = at.getShearY() / PX2MM;
-            tx = at.getTranslateX() / PX2MM;
-        }
-
-        Double topLeftX = tx;
-        Double topLeftY =
-                (page.getCropBox().getHeight() - at.getScaleY()) / PX2MM - ty
-                        - sy;
-        Double width = Math
-                .abs((at.getScaleX()) / PX2MM);
-        Double height = Math
-                .abs((at.getScaleY()) / PX2MM);
-        width += Math.abs(at.getShearX() / PX2MM);
-        height += Math.abs(at.getShearY() / PX2MM);
-
-        if (width == Math.abs(scaleX) || height == Math.abs(scaleY)) {
-            // 水平翻转
-            if (scaleX < 0) {
-                sx = Math.abs(scaleX);
-                sy = 0d;
-                topLeftX = topLeftX - sx;
-            }
-            // 垂直翻转
-            else if (scaleY < 0) {
-                sx = 0d;
-                sy = Math.abs(scaleY);
-                topLeftY = topLeftY - sy;
-            }
-        }
-
-        if (at.getTranslateX() < 0) {
-            topLeftX = topLeftX + at.getTranslateX();
-        }
-        if (at.getTranslateY() < 0) {
-            topLeftY = topLeftY + at.getTranslateY();
-        }
-
-        if (at.getScaleX() < 0 && at.getShearX() != 0) {
-            topLeftX = topLeftX - Math.abs(at.getScaleX() / PX2MM);
-            topLeftY = topLeftY - Math.abs(at.getScaleY() / PX2MM);
-            sx = sx + Math.abs(at.getScaleX() / PX2MM);
-            sy = sy + Math.abs(at.getScaleY() / PX2MM);
-        }
-        // 向左、右旋转90度
-        else if (at.getScaleX() == 0 && at.getScaleY() == 0) {
-            // 向左旋转90度
-            if (at.getShearX() < 0 && at.getShearY() < 0) {
-                topLeftY = topLeftY - height;
-                sy = sy + height;
-            }
-            // 向右旋转90度
-            else if (at.getShearX() > 0 && at.getShearY() > 0) {
-                topLeftY = topLeftY - height;
-                sy = sy + height;
-            }
-        }
-        // System.out.println(unicode + ":计算Boundary:" + Arith.round2(topLeftX)
-        // + "," + Arith.round2(topLeftY) + "," + Arith.round2(width) + ","
-        // + Arith.round2(height) + "|" + sx + "," + sy);
-        return new Double[]{topLeftX, topLeftY,
-                width, height};
-    }
-
     /**
-     * 添加字符变换
-     *
-     * @param text
-     */
-    private void addCGTransform(String text) {
-        int total = text.length();
+	 * 添加字符变换
+	 * 
+	 * @param text
+	 */
+	private void addCGTransform(String text) {
+		int total = text.length();
         CT_CGTransfrom cgTransform = new CT_CGTransfrom();
         cgTransform.setCodePosition(0);
         cgTransform.setGlyphCount(total);
         cgTransform.setCodeCount(total);
         cgTransform.setGlyphs(new ST_Array($glyphs.toArray(new String[$glyphs.size()])));
         $textObj.addCGTransform(cgTransform);
-    }
+	}
 
     /**
      * 转换为rgb
