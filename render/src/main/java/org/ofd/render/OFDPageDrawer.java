@@ -72,11 +72,6 @@ public class OFDPageDrawer extends PDFGraphicsStreamEngine {
     private float PX2MM = 2.834175f;
     private int pageRotation;
 
-    private static final byte SEG_MOVETO = (byte) PathIterator.SEG_MOVETO;
-    private static final byte SEG_LINETO = (byte) PathIterator.SEG_LINETO;
-    private static final byte SEG_QUADTO = (byte) PathIterator.SEG_QUADTO;
-    private static final byte SEG_CUBICTO = (byte) PathIterator.SEG_CUBICTO;
-    private static final byte SEG_CLOSE = (byte) PathIterator.SEG_CLOSE;
 
     public CT_Layer getCtLayer() {
         // 获取时，从队列添加
@@ -259,18 +254,18 @@ public class OFDPageDrawer extends PDFGraphicsStreamEngine {
         double[] coords = new double[6];
         while (!iterator.isDone()) {
             switch (iterator.currentSegment(coords)) {
-                case SEG_MOVETO:
+                case PathIterator.SEG_MOVETO:
                     data.moveTo(coords[0] * scale, height - coords[1] * scale);
                     break;
-                case SEG_LINETO:
+                case PathIterator.SEG_LINETO:
                     data.lineTo(coords[0] * scale, height - coords[1] * scale);
                     break;
-                case SEG_CUBICTO:
+                case PathIterator.SEG_CUBICTO:
                     data.B(coords[0] * scale, height - coords[1] * scale,
                             coords[2] * scale, height - coords[3] * scale,
                             coords[4] * scale, height - coords[5] * scale);
                     break;
-                case SEG_CLOSE:
+                case PathIterator.SEG_CLOSE:
                     data.close();
                     closePath();
                     break;
