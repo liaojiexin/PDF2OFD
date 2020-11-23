@@ -53,7 +53,7 @@ import org.ofdrw.core.basicType.ST_RefID;
 import org.ofdrw.core.graph.pathObj.AbbreviatedData;
 import org.ofdrw.core.graph.pathObj.CT_Path;
 import org.ofdrw.core.pageDescription.color.color.CT_Color;
-import org.ofdrw.core.text.CT_CGTransfrom;
+import org.ofdrw.core.text.CT_CGTransform;
 import org.ofdrw.core.text.TextCode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -841,7 +841,7 @@ public class OFDPageDrawer extends PDFGraphicsStreamEngine {
 	 */
 	private void addCGTransform(String text) {
 		int total = text.length();
-        CT_CGTransfrom cgTransform = new CT_CGTransfrom();
+        CT_CGTransform cgTransform = new CT_CGTransform();
         cgTransform.setCodePosition(0);
         cgTransform.setGlyphCount(total);
         cgTransform.setCodeCount(total);
