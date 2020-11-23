@@ -1,10 +1,7 @@
 package org.ofd.render;
 
 
-import java.awt.geom.AffineTransform;
-import java.awt.geom.GeneralPath;
-import java.awt.geom.PathIterator;
-import java.awt.geom.Point2D;
+import java.awt.geom.*;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -43,6 +40,7 @@ import org.apache.pdfbox.util.Vector;
 import org.bouncycastle.crypto.Digest;
 import org.bouncycastle.crypto.digests.MD5Digest;
 import org.dom4j.Element;
+import org.ofdrw.core.OFDElement;
 import org.ofdrw.core.basicStructure.pageObj.layer.CT_Layer;
 import org.ofdrw.core.basicStructure.pageObj.layer.block.ImageObject;
 import org.ofdrw.core.basicStructure.pageObj.layer.block.PathObject;
@@ -52,6 +50,8 @@ import org.ofdrw.core.basicType.ST_ID;
 import org.ofdrw.core.basicType.ST_RefID;
 import org.ofdrw.core.graph.pathObj.AbbreviatedData;
 import org.ofdrw.core.graph.pathObj.CT_Path;
+import org.ofdrw.core.pageDescription.clips.CT_Clip;
+import org.ofdrw.core.pageDescription.clips.Clips;
 import org.ofdrw.core.pageDescription.color.color.CT_Color;
 import org.ofdrw.core.text.CT_CGTransform;
 import org.ofdrw.core.text.TextCode;
@@ -72,6 +72,7 @@ public class OFDPageDrawer extends PDFGraphicsStreamEngine {
     private float PX2MM = 2.834175f;
     private int pageRotation;
 
+    private Area lastClip;
 
     public CT_Layer getCtLayer() {
         // 获取时，从队列添加
@@ -122,12 +123,75 @@ public class OFDPageDrawer extends PDFGraphicsStreamEngine {
         double y = (page.getCropBox().getHeight() - ctmNew.getTranslateY() - imageYScale) * scale;
         double w = imageXScale * scale;
         double h = imageYScale * scale;
-
         ImageObject imageObject = new ImageObject(ofdCreator.getNextRid());
         imageObject.setBoundary(x, y, w, h);
         imageObject.setResourceID(new ST_RefID(ST_ID.getInstance(ofdCreator.getImageMap().get(name))));
         imageObject.setCTM(ST_Array.getInstance(String.format("%.0f 0 0 %.0f 0 0", w, h)));
+        setImageClip(imageObject, x, y, w, h);
         ctLayer.add(imageObject);
+    }
+
+    private String getPointsFromClipArea(Area area, double x, double y, double w, double h) {
+        String abbreviatedData = "";
+        double[] coords = new double[6];
+        for (PathIterator pi = area.getPathIterator(null);
+             !pi.isDone();
+             pi.next()) {
+            switch (pi.currentSegment(coords)) {
+                case PathIterator.SEG_MOVETO:
+                    abbreviatedData += String.format("M %.1f %.1f ", (coords[0] * scale - x) / w, ((page.getCropBox().getHeight() - coords[1]) * scale - y) / h);
+                    break;
+                case PathIterator.SEG_LINETO:
+                    abbreviatedData += String.format("L %.1f %.1f ", (coords[0] * scale - x) / w, ((page.getCropBox().getHeight() - coords[1]) * scale - y) / h);
+                    break;
+                case PathIterator.SEG_CUBICTO:
+                    abbreviatedData += String.format("B %.1f %.1f %.1f %.1f %.1f %.1f ", (coords[0] * scale - x) / w, ((page.getCropBox().getHeight() - coords[1]) * scale - y) / h, (coords[2] * scale - x) / w, ((page.getCropBox().getHeight() - coords[3]) * scale - y) / h, (coords[4] * scale - x) / w, ((page.getCropBox().getHeight() - coords[5]) * scale - y) / h);
+                    break;
+                case PathIterator.SEG_CLOSE:
+                    abbreviatedData += " C";
+            }
+        }
+        return abbreviatedData;
+    }
+
+    private void setImageClip(ImageObject imageObject, double ix, double iy, double iw, double ih) {
+        Area clippingPath = this.getGraphicsState().getCurrentClippingPath();
+        if (clippingPath != lastClip) {
+            if (clippingPath.getPathIterator((AffineTransform) null).isDone()) {
+                return;
+            } else {
+                double w = (clippingPath.getBounds().width * scale);
+                double h = (clippingPath.getBounds().height * scale);
+                double x = (clippingPath.getBounds().x * scale);
+                double y = (page.getCropBox().getHeight() - clippingPath.getBounds().y - clippingPath.getBounds().height) * scale;
+                x = Double.parseDouble(String.format("%.2f", x));
+                y = Double.parseDouble(String.format("%.2f", y));
+                w = Double.parseDouble(String.format("%.0f", w));
+                h = Double.parseDouble(String.format("%.0f", h));
+                double clipX = Math.abs(x - ix) / iw;
+                double clipY = Math.abs(y - iy) / ih;
+                double clipW = w / iw;
+                double clipH = h / ih;
+                lastClip = clippingPath;
+                String abbreviatedData = getPointsFromClipArea(clippingPath, x, y, w, h);
+                if (abbreviatedData.contains("B") || (clipX >= 0 && clipY >= 0 && (clipW >= 0 && clipW <= 1) && (clipH >= 0 && clipH <= 1))) {
+                    OFDElement abbreviatedDataEle = OFDElement.getInstance("AbbreviatedData");
+                    abbreviatedDataEle.setText(abbreviatedData);
+                    CT_Path ctPath = new CT_Path();
+                    ctPath.setFill(true);
+                    ctPath.setStroke(false);
+                    ctPath.setBoundary(clipX, clipY, clipW, clipH);
+                    ctPath.add(abbreviatedDataEle);
+                    org.ofdrw.core.pageDescription.clips.Area area = new org.ofdrw.core.pageDescription.clips.Area();
+                    area.add(ctPath);
+                    CT_Clip ct_clip = new CT_Clip();
+                    ct_clip.addArea(area);
+                    Clips clips = new Clips();
+                    clips.addClip(ct_clip);
+                    imageObject.setClips(clips);
+                }
+            }
+        }
     }
 
     private String bcMD5(byte[] imageBytes) {
