@@ -1,15 +1,6 @@
 package org.ofd.render;
 
 
-import java.awt.geom.*;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.util.ArrayList;
-import java.util.List;
-
-import javax.imageio.ImageIO;
-
 import org.apache.commons.io.IOUtils;
 import org.apache.fontbox.ttf.CmapLookup;
 import org.apache.fontbox.ttf.TrueTypeFont;
@@ -18,17 +9,7 @@ import org.apache.pdfbox.contentstream.PDFGraphicsStreamEngine;
 import org.apache.pdfbox.cos.COSName;
 import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.common.PDStream;
-import org.apache.pdfbox.pdmodel.font.PDCIDFont;
-import org.apache.pdfbox.pdmodel.font.PDCIDFontType0;
-import org.apache.pdfbox.pdmodel.font.PDCIDFontType2;
-import org.apache.pdfbox.pdmodel.font.PDFont;
-import org.apache.pdfbox.pdmodel.font.PDFontDescriptor;
-import org.apache.pdfbox.pdmodel.font.PDTrueTypeFont;
-import org.apache.pdfbox.pdmodel.font.PDType0Font;
-import org.apache.pdfbox.pdmodel.font.PDType1CFont;
-import org.apache.pdfbox.pdmodel.font.PDType1Font;
-import org.apache.pdfbox.pdmodel.font.PDType3Font;
-import org.apache.pdfbox.pdmodel.font.encoding.GlyphList;
+import org.apache.pdfbox.pdmodel.font.*;
 import org.apache.pdfbox.pdmodel.graphics.color.PDColor;
 import org.apache.pdfbox.pdmodel.graphics.color.PDColorSpace;
 import org.apache.pdfbox.pdmodel.graphics.image.PDImage;
@@ -58,6 +39,14 @@ import org.ofdrw.core.text.TextCode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.imageio.ImageIO;
+import java.awt.geom.*;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.List;
+
 public class OFDPageDrawer extends PDFGraphicsStreamEngine {
 
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
@@ -65,7 +54,6 @@ public class OFDPageDrawer extends PDFGraphicsStreamEngine {
     private int clipWindingRule = -1;
 
     private OFDCreator ofdCreator;
-    private final GlyphList glyphList;
     private CT_Layer ctLayer;
     private float scale;
     private PDPage page;
@@ -86,10 +74,6 @@ public class OFDPageDrawer extends PDFGraphicsStreamEngine {
         super(page);
         this.page = page;
         this.ofdCreator = ofdCreator;
-        // load additional glyph list for Unicode mapping
-        String path = "/org/apache/pdfbox/resources/glyphlist/additional.txt";
-        InputStream input = GlyphList.class.getResourceAsStream(path);
-        glyphList = new GlyphList(GlyphList.getAdobeGlyphList(), input);
         ctLayer = this.ofdCreator.createLayer();
         this.scale = scale;
     }
@@ -699,12 +683,15 @@ public class OFDPageDrawer extends PDFGraphicsStreamEngine {
                             ctm.getShearY() / PX2MM, scaleY, 0, 0));
         } else {
             $textObj.setCTM(new ST_Array(
-					nextTextRenderingMatrix.getScaleX(),
-					nextTextRenderingMatrix.getShearX(),
-					nextTextRenderingMatrix.getShearY(),
-					nextTextRenderingMatrix.getScaleY(),
-					textPosition.getX() / PX2MM,
-					textPosition.getY() / PX2MM));
+                    nextTextRenderingMatrix.getScaleX(),
+                    nextTextRenderingMatrix.getShearX(),
+                    nextTextRenderingMatrix.getShearY(),
+                    nextTextRenderingMatrix.getScaleY(),
+                    textPosition.getX() / PX2MM,
+                    textPosition.getY() / PX2MM));
+        }
+        if (nextTextRenderingMatrix.getScaleX() != nextTextRenderingMatrix.getScaleY()) {
+            $textObj.setHScale((double) nextTextRenderingMatrix.getScaleX());
         }
         $stringIndex++;
     }
