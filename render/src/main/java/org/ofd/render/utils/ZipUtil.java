@@ -21,12 +21,11 @@ public class ZipUtil {
     /**
      * 打包OFD文件
      *
+     * @param workDirPath OFD内容工作目录
+     * @param zipFileName 文件名称（包含后缀的路径）
+     * @throws IOException IO异常
      * @Author: Lianglx
      * @Description: 使用commons-compress的压缩方式重写了原使用zip4j的压缩方式，为了删除zip4j依赖，统一使用commons-compress
-     *
-     * @param workDirPath OFD内容工作目录
-     * @param zipFileName    文件名称（包含后缀的路径）
-     * @throws IOException IO异常
      */
     public static void zip(File workDirPath, String zipFileName) throws IOException {
         ZipArchiveOutputStream zaos = null;
@@ -38,36 +37,36 @@ public class ZipUtil {
 
             //将每个文件用ZipArchiveEntry封装
             //再用ZipArchiveOutputStream写到压缩文件中
-            for(File file : allFiles(workDirPath)) {
-                if(file != null) {
-                    ZipArchiveEntry zipArchiveEntry  = new ZipArchiveEntry(file, file.getAbsolutePath().replace(workDirPath.getAbsolutePath(), "").substring(1));
+            for (File file : allFiles(workDirPath)) {
+                if (file != null) {
+                    ZipArchiveEntry zipArchiveEntry = new ZipArchiveEntry(file, file.getAbsolutePath().replace(workDirPath.getAbsolutePath(), "").substring(1));
                     zaos.putArchiveEntry(zipArchiveEntry);
                     InputStream is = null;
                     try {
-                        if(file.isDirectory()) continue;
+                        if (file.isDirectory()) continue;
                         is = new BufferedInputStream(new FileInputStream(file));
                         byte[] buffer = new byte[1024 * 4];
                         int len = -1;
-                        while((len = is.read(buffer)) != -1) {
+                        while ((len = is.read(buffer)) != -1) {
                             //把缓冲区的字节写入到ZipArchiveEntry
                             zaos.write(buffer, 0, len);
                         }
                         //Writes all necessary data for this entry.
                         zaos.closeArchiveEntry();
-                    }catch(Exception e) {
+                    } catch (Exception e) {
                         throw new IOException(e);
-                    }finally {
-                        if(is != null)
+                    } finally {
+                        if (is != null)
                             is.close();
                     }
 
                 }
             }
             zaos.finish();
-        }catch(Exception e){
+        } catch (Exception e) {
             throw new IOException(e);
-        }finally {
-            if(zaos != null) {
+        } finally {
+            if (zaos != null) {
                 zaos.close();
             }
         }
@@ -109,17 +108,16 @@ public class ZipUtil {
     /**
      * 打包OFD文件包二进制数据
      *
-     * @Author Lianglx
-     *
      * @param virtualFileMap
      * @return
      * @throws IOException
+     * @Author Lianglx
      */
     public static byte[] zip(Map<String, byte[]> virtualFileMap) throws IOException {
         ByteArrayOutputStream bos = new ByteArrayOutputStream();
         ZipArchiveOutputStream zaos = new ZipArchiveOutputStream(bos);
 
-        for(Map.Entry<String, byte[]> entry : virtualFileMap.entrySet()) {
+        for (Map.Entry<String, byte[]> entry : virtualFileMap.entrySet()) {
             zaos.putArchiveEntry(new ZipArchiveEntry(entry.getKey()));
             zaos.write(entry.getValue());
             zaos.closeArchiveEntry();
@@ -128,5 +126,25 @@ public class ZipUtil {
         zaos.finish();
 
         return bos.toByteArray();
+    }
+
+    /**
+     * 打包OFD文件包二进制数据
+     *
+     * @param virtualFileMap
+     * @return
+     * @throws IOException
+     * @Author Lianglx
+     */
+    public static void zip(Map<String, byte[]> virtualFileMap,OutputStream output) throws IOException {
+        ZipArchiveOutputStream zaos = new ZipArchiveOutputStream(output);
+
+        for (Map.Entry<String, byte[]> entry : virtualFileMap.entrySet()) {
+            zaos.putArchiveEntry(new ZipArchiveEntry(entry.getKey()));
+            zaos.write(entry.getValue());
+            zaos.closeArchiveEntry();
+        }
+
+        zaos.finish();
     }
 }

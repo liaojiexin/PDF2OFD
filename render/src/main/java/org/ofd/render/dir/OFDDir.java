@@ -6,6 +6,7 @@ import org.ofdrw.core.basicStructure.ofd.OFD;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -210,7 +211,6 @@ public class OFDDir implements DirCollect {
     /**
      * 打包成OFD数据
      *
-     *
      * @param virtualFileMap
      * @return
      * @throws IOException
@@ -220,5 +220,18 @@ public class OFDDir implements DirCollect {
         // 打包OFD文件
         return ZipUtil.zip(virtualFileMap);
     }
-    
+
+    /**
+     * 打包成OFD数据
+     *
+     * @param virtualFileMap
+     * @return
+     * @throws IOException
+     */
+    public void jar(Map<String, byte[]> virtualFileMap, OutputStream output) throws IOException {
+        virtualFileMap = this.collect("", virtualFileMap);
+        // 打包OFD文件
+        ZipUtil.zip(virtualFileMap, output);
+    }
+
 }

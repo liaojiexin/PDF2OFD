@@ -30,6 +30,7 @@ import org.ofdrw.core.pageDescription.color.colorSpace.OFDColorSpaceType;
 import org.ofdrw.core.text.font.CT_Font;
 
 import java.io.IOException;
+import java.io.OutputStream;
 import java.text.SimpleDateFormat;
 import java.time.LocalDate;
 import java.util.HashMap;
@@ -170,7 +171,7 @@ public class OFDCreator {
         }
         return fontId;
     }
-    
+
     // 以hashcode作为文件名，防止字体重名
     public String putFont(String fontHash, String familyName, String fontName, byte[] fontBytes, String suffix) {
         String fontId = this.fontMap.get(fontHash);
@@ -181,8 +182,8 @@ public class OFDCreator {
             fntKt.setFontName(fontName);
             fntKt.setID(currentId);
             if (fontBytes != null) {
-                fntKt.setFontFile(new ST_Loc("font_"+currentId + suffix));
-                docDir.addResource("font_"+currentId + suffix, fontBytes);
+                fntKt.setFontFile(new ST_Loc("font_" + currentId + suffix));
+                docDir.addResource("font_" + currentId + suffix, fontBytes);
             }
             Fonts fonts = this.ofdDir.getDocDefault().getPublicRes().getFonts().get(0);
             if (fonts != null) {
@@ -236,9 +237,13 @@ public class OFDCreator {
 
     public byte[] jar() throws IOException {
         docDir.getDocument().getCommonData().setMaxUnitID(getCurrRid());
+        Map<String, byte[]> virtualFileMap = new ConcurrentHashMap<>(64);
+        return ofdDir.jar(virtualFileMap);
+    }
 
-        Map<String, byte[]> virtualFileMap = new ConcurrentHashMap<>();
-        byte[] ofdByte = ofdDir.jar(virtualFileMap);
-        return ofdByte;
+    public void jar(OutputStream output) throws IOException {
+        docDir.getDocument().getCommonData().setMaxUnitID(getCurrRid());
+        Map<String, byte[]> virtualFileMap = new ConcurrentHashMap<>(64);
+        ofdDir.jar(virtualFileMap, output);
     }
 }
